@@ -1,21 +1,56 @@
-import { useState, useEffect } from 'react';
-import Login from './pages/Login';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminPanel from './pages/AdminPanel';
 import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Tasks from './pages/Tasks';
+import { getToken } from './utils/auth';
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkToken = () => setToken(localStorage.getItem('token'));
-    window.addEventListener('storage', checkToken);
-    return () => window.removeEventListener('storage', checkToken);
-  }, []);
+  const handleLogin = (newToken) => {
+    localStorage.setItem('token', newToken);
+    navigate('/dashboard', { replace: true });
+  };
 
-  if (token) {
-    return <Dashboard />;
-  } else {
-    return <Login />;
-  }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.reload();
+  };
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          getToken()
+            ? <Navigate to="/dashboard" replace />
+            : <Login onLogin={handleLogin} />
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          getToken()
+            ? <Navigate to="/dashboard" replace />
+            : <Register />
+        }
+      />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<Dashboard onLogout={handleLogout} />} />
+        <Route path="/tasks" element={<Tasks onLogout={handleLogout} />} />
+      </Route>
+
+      <Route element={<ProtectedRoute adminOnly />}>
+        <Route path="/admin" element={<AdminPanel onLogout={handleLogout} />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to={getToken() ? '/dashboard' : '/login'} replace />} />
+    </Routes>
+  );
 }
 
 export default App;
