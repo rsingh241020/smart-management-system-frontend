@@ -25,3 +25,5 @@ export const isAdmin = () => {
 
   return role === 'ADMIN' || role === 'ROLE_ADMIN' || email === 'rohitadmin@gmail.com';
 };
+
+export const getDefaultRoute = () => (isAdmin() ? '/admin' : '/dashboard');

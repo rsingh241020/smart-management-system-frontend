@@ -14,6 +14,7 @@ function Dashboard({ onLogout }) {
   const [error, setError] = useState('');
 
   const load = async () => {
+    setIsLoading(true);
     setError('');
 
     try {
@@ -24,15 +25,50 @@ function Dashboard({ onLogout }) {
 
       setTasks(Array.isArray(taskData) ? taskData : []);
       setSummary(summaryData || {});
-    } catch {
-      setError('Unable to load dashboard data. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load dashboard data. Please try again.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    let isActive = true;
+
+    const initialize = async () => {
+      try {
+        const [taskData, summaryData] = await Promise.all([
+          getMyTasks(),
+          getSummary(),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setTasks(Array.isArray(taskData) ? taskData : []);
+        setSummary(summaryData || {});
+        setError('');
+      } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
+        const message = err instanceof Error ? err.message : 'Unable to load dashboard data. Please try again.';
+        setError(message);
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const changeStatus = async (id, status) => {
@@ -42,8 +78,9 @@ function Dashboard({ onLogout }) {
     try {
       await updateTask(id, status);
       await load();
-    } catch {
-      setError('Unable to update task status.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to update task status.';
+      setError(message);
     } finally {
       setUpdatingTaskId(null);
     }

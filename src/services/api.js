@@ -1,8 +1,18 @@
-const BASE = "http://localhost:8080";
+// src/services/api.js
+
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+// ===============================
+// AUTH HEADER
+// ===============================
 
 const authHeaders = () => ({
   Authorization: "Bearer " + localStorage.getItem("token"),
 });
+
+// ===============================
+// RESPONSE PARSER
+// ===============================
 
 const parseResponse = async (res) => {
   const text = await res.text();
@@ -18,115 +28,227 @@ const parseResponse = async (res) => {
   }
 };
 
+// ===============================
+// ERROR HANDLER
+// ===============================
+
+const getErrorMessage = async (res, fallbackMessage) => {
+  const payload = await parseResponse(res);
+
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
+  }
+
+  if (payload && typeof payload === "object") {
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message.trim();
+    }
+
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      return payload.error.trim();
+    }
+  }
+
+  return fallbackMessage;
+};
+
+// ===============================
+// COMMON REQUEST FUNCTION
+// ===============================
+
+const request = async (
+  path,
+  options = {},
+  fallbackMessage = "Request failed",
+) => {
+  try {
+    const res = await fetch(`${BASE}${path}`, options);
+
+    if (!res.ok) {
+      throw new Error(await getErrorMessage(res, fallbackMessage));
+    }
+
+    return parseResponse(res);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`Unable to reach server at ${BASE}`, { cause: error });
+    }
+
+    throw error;
+  }
+};
+
+// ===============================
+// AUTH APIs
+// ===============================
+
 export const loginUser = async (data) => {
-  const res = await fetch(`${BASE}/api/users/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const res = await request(
+    "/api/users/login",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
 
-  if (!res.ok) {
-    throw new Error("Login failed");
-  }
+    "Login failed",
+  );
 
-  return res.text();
+  return typeof res === "string" ? res : "";
 };
 
-export const registerUser = async (data) => {
-  const res = await fetch(`${BASE}/api/users/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+export const registerUser = async (data) =>
+  request(
+    "/api/users/register",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
 
-  if (!res.ok) {
-    throw new Error("Registration failed");
-  }
+    "Registration failed",
+  );
 
-  return parseResponse(res);
-};
+// ===============================
+// TASK APIs
+// ===============================
 
-export const getMyTasks = async () => {
-  const res = await fetch(`${BASE}/api/tasks/my`, {
-    headers: authHeaders(),
-  });
+// MY TASKS
 
-  if (!res.ok) {
-    throw new Error("Failed to load tasks");
-  }
+export const getMyTasks = async () =>
+  request(
+    "/api/tasks/my",
+    {
+      headers: authHeaders(),
+    },
 
-  return parseResponse(res);
-};
+    "Failed to load tasks",
+  );
+
+// ALL TASKS
+
+export const getAllTasks = async () =>
+  request(
+    "/api/tasks",
+    {
+      headers: authHeaders(),
+    },
+
+    "Failed to load all tasks",
+  );
+
+// CREATE TASK
+
+export const createTask = async (data) =>
+  request(
+    "/api/tasks",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+
+      body: JSON.stringify({
+        title: data.title,
+
+        description: data.description,
+
+        status: data.status,
+
+        assignedTo: data.assignedTo,
+
+        dueDate: data.dueDate,
+
+        // ✅ PROJECT RELATION
+        project: {
+          id: Number(data.projectId),
+        },
+      }),
+    },
+
+    "Failed to create task",
+  );
+
+// UPDATE TASK STATUS
 
 export const updateTask = async (id, status) => {
-  const res = await fetch(`${BASE}/api/tasks/${id}/status?status=${status}`, {
-    method: "PATCH",
-    headers: authHeaders(),
-  });
+  await request(
+    `/api/tasks/${id}/status?status=${status}`,
+    {
+      method: "PATCH",
 
-  if (!res.ok) {
-    throw new Error("Failed to update task");
-  }
-};
-
-export const getSummary = async () => {
-  const res = await fetch(`${BASE}/api/tasks/summary`, {
-    headers: authHeaders(),
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to load summary");
-  }
-
-  return parseResponse(res);
-};
-
-export const getAllTasks = async () => {
-  const res = await fetch(`${BASE}/api/tasks`, {
-    headers: authHeaders(),
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to load all tasks");
-  }
-
-  return parseResponse(res);
-};
-
-export const createTask = async (data) => {
-  const res = await fetch(`${BASE}/api/tasks`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
+      headers: authHeaders(),
     },
-    body: JSON.stringify(data),
-  });
 
-  if (!res.ok) {
-    throw new Error("Failed to create task");
-  }
-
-  return parseResponse(res);
+    "Failed to update task",
+  );
 };
 
-export const createProject = async (data) => {
-  const res = await fetch(`${BASE}/api/projects`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
+// OVERDUE TASKS
+
+export const getOverdueTasks = async () =>
+  request(
+    "/api/tasks/overdue",
+    {
+      headers: authHeaders(),
     },
-    body: JSON.stringify(data),
-  });
 
-  if (!res.ok) {
-    throw new Error("Failed to create project");
-  }
+    "Failed to load overdue tasks",
+  );
 
-  return parseResponse(res);
-};
+// SUMMARY
+
+export const getSummary = async () =>
+  request(
+    "/api/tasks/summary",
+    {
+      headers: authHeaders(),
+    },
+
+    "Failed to load summary",
+  );
+
+// ===============================
+// PROJECT APIs
+// ===============================
+
+// CREATE PROJECT
+
+export const createProject = async (data) =>
+  request(
+    "/api/projects",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+
+      body: JSON.stringify(data),
+    },
+
+    "Failed to create project",
+  );
+
+// GET ALL PROJECTS
+
+export const getAllProjects = async () =>
+  request(
+    "/api/projects",
+    {
+      headers: authHeaders(),
+    },
+
+    "Failed to load projects",
+  );

@@ -1,3 +1,4 @@
+import { LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loginUser } from '../services/api';
@@ -21,8 +22,14 @@ function Login({ onLogin }) {
       }
 
       onLogin(token);
-    } catch {
-      setError('Invalid email or password. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please try again.';
+
+      if (message === 'Login failed') {
+        setError('Invalid email or password. Please try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +70,18 @@ function Login({ onLogin }) {
 
           <section className="bg-slate-50 px-6 py-10 text-slate-950 sm:px-10 lg:px-12 lg:py-16">
             <div className="mx-auto w-full max-w-md">
+              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:hidden">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20">
+                  <LogIn size={22} />
+                </div>
+                <h1 className="mt-4 text-2xl font-bold text-slate-950">
+                  Smart task management for focused teams.
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Sign in to manage work, update task status, and keep your daily progress in one place.
+                </p>
+              </div>
+
               <div className="mb-9">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">
                   Welcome back
@@ -88,13 +107,14 @@ function Login({ onLogin }) {
                   </label>
                   <input
                     id="email"
+                    name="email"
                     type="email"
                     value={email}
                     placeholder="you@example.com"
                     autoComplete="email"
                     required
                     onChange={(event) => setEmail(event.target.value)}
-                    className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                    className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition duration-200 placeholder:text-slate-400 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                 </div>
 
@@ -104,28 +124,32 @@ function Login({ onLogin }) {
                   </label>
                   <input
                     id="password"
+                    name="password"
                     type="password"
                     value={password}
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     required
                     onChange={(event) => setPassword(event.target.value)}
-                    className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                    className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition duration-200 placeholder:text-slate-400 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex w-full items-center justify-center rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                 >
                   {isLoading ? (
-                    <span className="flex items-center gap-2">
+                    <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
                       Signing in...
-                    </span>
+                    </>
                   ) : (
-                    'Login'
+                    <>
+                      <LogIn size={18} />
+                      Login
+                    </>
                   )}
                 </button>
               </form>

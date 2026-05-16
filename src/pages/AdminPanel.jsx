@@ -1,68 +1,119 @@
-import { FolderPlus, PlusCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import LoadingSpinner from '../components/LoadingSpinner';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import TaskTable from '../components/TaskTable';
-import { createProject, createTask, getAllTasks } from '../services/api';
+import { FolderPlus, PlusCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import LoadingSpinner from "../components/LoadingSpinner";
+import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
+import TaskTable from "../components/TaskTable";
+import {
+  createProject,
+  createTask,
+  getAllProjects,
+  getAllTasks,
+} from "../services/api";
 
 const initialTask = {
-  title: '',
-  description: '',
-  status: 'TODO',
-  projectId: '',
+  title: "",
+  description: "",
+  status: "TODO",
+  projectId: "",
+  assignedTo: "",
+  dueDate: "",
 };
 
 const initialProject = {
-  name: '',
-  description: '',
+  name: "",
+  description: "",
 };
 
-const cleanPayload = (data) => Object.fromEntries(
-  Object.entries(data)
-    .filter(([, value]) => value !== '')
-    .map(([key, value]) => [key, key.endsWith('Id') ? Number(value) : value]),
-);
+const cleanPayload = (data) =>
+  Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== "")
+      .map(([key, value]) => [key, key.endsWith("Id") ? Number(value) : value]),
+  );
 
 function AdminPanel({ onLogout }) {
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [taskForm, setTaskForm] = useState(initialTask);
   const [projectForm, setProjectForm] = useState(initialProject);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const loadTasks = async () => {
-    setError('');
+    setIsLoading(true);
+    setError("");
 
     try {
       const allTasks = await getAllTasks();
       setTasks(Array.isArray(allTasks) ? allTasks : []);
-    } catch {
-      setError('Unable to load all tasks.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to load all tasks.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTasks();
+    let isActive = true;
+
+    const initialize = async () => {
+      try {
+        const [allTasks, projectData] = await Promise.all([
+          getAllTasks(),
+          getAllProjects(),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setTasks(Array.isArray(allTasks) ? allTasks : []);
+        setProjects(Array.isArray(projectData) ? projectData : []);
+        setError("");
+      } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
+        const message =
+          err instanceof Error ? err.message : "Unable to load all tasks.";
+        setError(message);
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const submitProject = async (event) => {
     event.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     setIsCreatingProject(true);
 
     try {
       await createProject(cleanPayload(projectForm));
       setProjectForm(initialProject);
-      setSuccess('Project created successfully.');
-    } catch {
-      setError('Unable to create project.');
+      const projectData = await getAllProjects();
+      setProjects(Array.isArray(projectData) ? projectData : []);
+      setSuccess("Project created successfully.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to create project.";
+      setError(message);
     } finally {
       setIsCreatingProject(false);
     }
@@ -70,17 +121,25 @@ function AdminPanel({ onLogout }) {
 
   const submitTask = async (event) => {
     event.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
+
+    if (!taskForm.assignedTo.trim()) {
+      setError("Assignee email is required before creating a task.");
+      return;
+    }
+
     setIsCreatingTask(true);
 
     try {
       await createTask(cleanPayload(taskForm));
       setTaskForm(initialTask);
-      setSuccess('Task created successfully.');
+      setSuccess("Task created successfully.");
       await loadTasks();
-    } catch {
-      setError('Unable to create task.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to create task.";
+      setError(message);
     } finally {
       setIsCreatingTask(false);
     }
@@ -113,41 +172,64 @@ function AdminPanel({ onLogout }) {
             )}
 
             <section className="grid gap-5 xl:grid-cols-2">
-              <form className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-xl hover:shadow-slate-200/80 sm:p-6" onSubmit={submitProject}>
+              <form
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-xl hover:shadow-slate-200/80 sm:p-6"
+                onSubmit={submitProject}
+              >
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700">
                     <FolderPlus size={20} />
                   </span>
                   <div>
-                  <h2 className="text-lg font-bold text-slate-950">Create project</h2>
-                  <p className="mt-1 text-sm text-slate-500">Add a new backend project record.</p>
+                    <h2 className="text-lg font-bold text-slate-950">
+                      Create project
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Add a new backend project record.
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-5 space-y-4">
                   <div>
-                    <label htmlFor="project-name" className="mb-2 block text-sm font-semibold text-slate-800">
+                    <label
+                      htmlFor="project-name"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
                       Project name
                     </label>
                     <input
                       id="project-name"
                       value={projectForm.name}
                       required
-                      onChange={(event) => setProjectForm({ ...projectForm, name: event.target.value })}
+                      onChange={(event) =>
+                        setProjectForm({
+                          ...projectForm,
+                          name: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                       placeholder="Project name"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="project-description" className="mb-2 block text-sm font-semibold text-slate-800">
+                    <label
+                      htmlFor="project-description"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
                       Description
                     </label>
                     <textarea
                       id="project-description"
                       value={projectForm.description}
                       rows="4"
-                      onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })}
+                      onChange={(event) =>
+                        setProjectForm({
+                          ...projectForm,
+                          description: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                       placeholder="Project description"
                     />
@@ -159,44 +241,76 @@ function AdminPanel({ onLogout }) {
                   disabled={isCreatingProject}
                   className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/20 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  {isCreatingProject ? <LoadingSpinner label="Creating project..." /> : <><FolderPlus size={18} />Create project</>}
+                  {isCreatingProject ? (
+                    <LoadingSpinner label="Creating project..." />
+                  ) : (
+                    <>
+                      <FolderPlus size={18} />
+                      Create project
+                    </>
+                  )}
                 </button>
               </form>
 
-              <form className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-xl hover:shadow-slate-200/80 sm:p-6" onSubmit={submitTask}>
+              <form
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-xl hover:shadow-slate-200/80 sm:p-6"
+                onSubmit={submitTask}
+              >
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                     <PlusCircle size={20} />
                   </span>
                   <div>
-                  <h2 className="text-lg font-bold text-slate-950">Create task</h2>
-                  <p className="mt-1 text-sm text-slate-500">Create a task through the backend task API.</p>
+                    <h2 className="text-lg font-bold text-slate-950">
+                      Create task
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Create a task through the backend task API.
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label htmlFor="task-title" className="mb-2 block text-sm font-semibold text-slate-800">
+                    <label
+                      htmlFor="task-title"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
                       Task title
                     </label>
+
                     <input
                       id="task-title"
                       value={taskForm.title}
                       required
-                      onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })}
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          title: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                       placeholder="Task title"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="task-status" className="mb-2 block text-sm font-semibold text-slate-800">
+                    <label
+                      htmlFor="task-status"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
                       Status
                     </label>
+
                     <select
                       id="task-status"
                       value={taskForm.status}
-                      onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value })}
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          status: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                     >
                       <option value="TODO">TODO</option>
@@ -206,29 +320,98 @@ function AdminPanel({ onLogout }) {
                   </div>
 
                   <div>
-                    <label htmlFor="task-project" className="mb-2 block text-sm font-semibold text-slate-800">
-                      Project ID
+                    <label
+                      htmlFor="task-project"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
+                      Project
                     </label>
-                    <input
+
+                    <select
                       id="task-project"
-                      type="number"
-                      min="1"
                       value={taskForm.projectId}
-                      onChange={(event) => setTaskForm({ ...taskForm, projectId: event.target.value })}
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          projectId: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
-                      placeholder="Optional"
+                    >
+                      <option value="">Select project</option>
+
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="task-assignee-email"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
+                      Assignee email
+                    </label>
+
+                    <input
+                      id="task-assignee-email"
+                      type="email"
+                      value={taskForm.assignedTo}
+                      required
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          assignedTo: event.target.value,
+                        })
+                      }
+                      className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                      placeholder="teammate@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="task-due-date"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
+                      Due date
+                    </label>
+
+                    <input
+                      id="task-due-date"
+                      type="date"
+                      value={taskForm.dueDate}
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          dueDate: event.target.value,
+                        })
+                      }
+                      className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label htmlFor="task-description" className="mb-2 block text-sm font-semibold text-slate-800">
+                    <label
+                      htmlFor="task-description"
+                      className="mb-2 block text-sm font-semibold text-slate-800"
+                    >
                       Description
                     </label>
+
                     <textarea
                       id="task-description"
                       value={taskForm.description}
                       rows="4"
-                      onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })}
+                      onChange={(event) =>
+                        setTaskForm({
+                          ...taskForm,
+                          description: event.target.value,
+                        })
+                      }
                       className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition duration-200 hover:border-cyan-300 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                       placeholder="Task description"
                     />
@@ -240,7 +423,14 @@ function AdminPanel({ onLogout }) {
                   disabled={isCreatingTask}
                   className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-slate-950 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-lg hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  {isCreatingTask ? <LoadingSpinner label="Creating task..." /> : <><PlusCircle size={18} />Create task</>}
+                  {isCreatingTask ? (
+                    <LoadingSpinner label="Creating task..." />
+                  ) : (
+                    <>
+                      <PlusCircle size={18} />
+                      Create task
+                    </>
+                  )}
                 </button>
               </form>
             </section>

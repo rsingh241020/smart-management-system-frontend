@@ -11,20 +11,52 @@ function Tasks({ onLogout }) {
   const [error, setError] = useState('');
 
   const loadTasks = async () => {
+    setIsLoading(true);
     setError('');
 
     try {
       const taskData = await getMyTasks();
       setTasks(Array.isArray(taskData) ? taskData : []);
-    } catch {
-      setError('Unable to load tasks.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load tasks.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTasks();
+    let isActive = true;
+
+    const initialize = async () => {
+      try {
+        const taskData = await getMyTasks();
+
+        if (!isActive) {
+          return;
+        }
+
+        setTasks(Array.isArray(taskData) ? taskData : []);
+        setError('');
+      } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
+        const message = err instanceof Error ? err.message : 'Unable to load tasks.';
+        setError(message);
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const changeStatus = async (id, status) => {
@@ -34,8 +66,9 @@ function Tasks({ onLogout }) {
     try {
       await updateTask(id, status);
       await loadTasks();
-    } catch {
-      setError('Unable to update task status.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to update task status.';
+      setError(message);
     } finally {
       setUpdatingTaskId(null);
     }

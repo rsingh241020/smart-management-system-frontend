@@ -1,17 +1,17 @@
-import { UserPlus } from 'lucide-react';
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { registerUser } from '../services/api';
+import { UserPlus } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
+    name: "",
+    email: "",
+    password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -20,7 +20,7 @@ function Register() {
 
   const handleRegister = async (event) => {
     event.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
@@ -29,9 +29,13 @@ function Register() {
         email: form.email,
         password: form.password,
       });
-      navigate('/login', { replace: true });
-    } catch {
-      setError('Registration failed. Please check your details and try again.');
+      navigate("/login", { replace: true });
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please check your details and try again.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -50,15 +54,15 @@ function Register() {
                 Create your Smart Manager account.
               </h1>
               <p className="mt-5 max-w-md text-base leading-7 text-slate-300">
-                Register with your name, email, and password. Your role is assigned automatically by the backend.
+                Register with your name, email, and password.
               </p>
             </div>
-
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm leading-6 text-slate-300">
-              Admin access is handled by the backend for rohitadmin@gmail.com. All other users are registered as members.
+              Built with secure role-based authentication to provide seamless
+              access control, enhanced security, and a personalized user
+              experience.
             </div>
           </section>
-
           <section className="bg-slate-50 px-6 py-10 text-slate-950 sm:px-10 lg:px-12 lg:py-16">
             <div className="mx-auto w-full max-w-md">
               <div className="mb-9">
@@ -71,6 +75,10 @@ function Register() {
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Enter your details to create a new account.
                 </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Admin users will be taken to the admin panel after login by
+                  default.
+                </p>
               </div>
 
               {error && (
@@ -81,7 +89,10 @@ function Register() {
 
               <form className="space-y-5" onSubmit={handleRegister}>
                 <div>
-                  <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-800">
+                  <label
+                    htmlFor="name"
+                    className="mb-2 block text-sm font-semibold text-slate-800"
+                  >
                     Name
                   </label>
                   <input
@@ -97,7 +108,10 @@ function Register() {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-800">
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-semibold text-slate-800"
+                  >
                     Email address
                   </label>
                   <input
@@ -114,7 +128,10 @@ function Register() {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-800">
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-semibold text-slate-800"
+                  >
                     Password
                   </label>
                   <input
@@ -150,8 +167,11 @@ function Register() {
               </form>
 
               <p className="mt-6 text-center text-sm text-slate-600">
-                Already have an account?{' '}
-                <Link className="font-semibold text-cyan-700 transition hover:text-cyan-600" to="/login">
+                Already have an account?{" "}
+                <Link
+                  className="font-semibold text-cyan-700 transition hover:text-cyan-600"
+                  to="/login"
+                >
                   Login
                 </Link>
               </p>
